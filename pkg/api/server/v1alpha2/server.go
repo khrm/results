@@ -17,8 +17,9 @@ package server
 import (
 	"context"
 	"fmt"
-
 	"github.com/google/cel-go/cel"
+	"github.com/tektoncd/results/pkg/api/server/config"
+	"go.uber.org/zap"
 
 	"github.com/google/uuid"
 	cw "github.com/jonboulle/clockwork"
@@ -42,9 +43,11 @@ type getResultID func(ctx context.Context, parent, result string) (string, error
 type Server struct {
 	pb.UnimplementedResultsServer
 	pb.UnimplementedLogsServer
-	env  *cel.Env
-	db   *gorm.DB
-	auth auth.Checker
+	config *config.Config
+	logger *zap.SugaredLogger
+	env    *cel.Env
+	db     *gorm.DB
+	auth   auth.Checker
 
 	// Converts result names -> IDs configurable to allow overrides for
 	// testing.
@@ -52,7 +55,7 @@ type Server struct {
 }
 
 // New set up environment for the api server
-func New(db *gorm.DB, opts ...Option) (*Server, error) {
+func New(config *config.Config, logger *zap.SugaredLogger, db *gorm.DB, opts ...Option) (*Server, error) {
 	if err := db.AutoMigrate(&model.Result{}, &model.Record{}); err != nil {
 		return nil, fmt.Errorf("error automigrating DB: %w", err)
 	}
@@ -61,8 +64,10 @@ func New(db *gorm.DB, opts ...Option) (*Server, error) {
 		return nil, fmt.Errorf("failed to create CEL environment: %w", err)
 	}
 	srv := &Server{
-		db:  db,
-		env: env,
+		config: config,
+		logger: logger,
+		db:     db,
+		env:    env,
 
 		// Default open auth for easier testing.
 		auth: auth.AllowAll{},
