@@ -24,6 +24,7 @@ import (
 	"github.com/tektoncd/pipeline/pkg/apis/pipeline/v1beta1"
 	pipelineclient "github.com/tektoncd/pipeline/pkg/client/injection/client"
 	rtesting "github.com/tektoncd/pipeline/pkg/reconciler/testing"
+	"github.com/tektoncd/results/pkg/api/server/config"
 	"github.com/tektoncd/results/pkg/api/server/v1alpha2/record"
 	"github.com/tektoncd/results/pkg/api/server/v1alpha2/result"
 	"github.com/tektoncd/results/pkg/internal/test"
@@ -112,7 +113,7 @@ var (
 func TestReconcile_TaskRun(t *testing.T) {
 	// Configures fake tekton clients + informers.
 	ctx, _ := rtesting.SetupFakeContext(t)
-	results := test.NewResultsClient(t)
+	resultsClient, logsClient := test.NewResultsClient(t, &config.Config{LOGS_TYPE: "File"})
 
 	fakeclock := clockwork.NewFakeClockAt(time.Now())
 	clock = fakeclock
@@ -126,7 +127,7 @@ func TestReconcile_TaskRun(t *testing.T) {
 		DisableAnnotationUpdate: true,
 	}
 
-	r := NewDynamicReconciler(results, trclient, cfg)
+	r := NewDynamicReconciler(resultsClient, logsClient, trclient, cfg)
 	if err := r.Reconcile(ctx, taskrun); err != nil {
 		t.Fatal(err)
 	}
@@ -135,11 +136,11 @@ func TestReconcile_TaskRun(t *testing.T) {
 
 	t.Run("DisabledAnnotations", func(t *testing.T) {
 		resultName := result.FormatName(taskrun.GetNamespace(), string(taskrun.GetUID()))
-		if _, err := results.GetResult(ctx, &pb.GetResultRequest{Name: resultName}); err != nil {
+		if _, err := resultsClient.GetResult(ctx, &pb.GetResultRequest{Name: resultName}); err != nil {
 			t.Fatalf("GetResult: %v", err)
 		}
 		recordName := record.FormatName(resultName, string(taskrun.GetUID()))
-		if _, err := results.GetRecord(ctx, &pb.GetRecordRequest{Name: recordName}); err != nil {
+		if _, err := resultsClient.GetRecord(ctx, &pb.GetRecordRequest{Name: recordName}); err != nil {
 			t.Fatalf("GetRecord: %v", err)
 		}
 	})
@@ -160,10 +161,10 @@ func TestReconcile_TaskRun(t *testing.T) {
 		}
 	}
 
-	if _, err := results.GetResult(ctx, &pb.GetResultRequest{Name: tr.GetAnnotations()[annotation.Result]}); err != nil {
+	if _, err := resultsClient.GetResult(ctx, &pb.GetResultRequest{Name: tr.GetAnnotations()[annotation.Result]}); err != nil {
 		t.Fatalf("GetResult: %v", err)
 	}
-	if _, err := results.GetRecord(ctx, &pb.GetRecordRequest{Name: tr.GetAnnotations()[annotation.Record]}); err != nil {
+	if _, err := resultsClient.GetRecord(ctx, &pb.GetRecordRequest{Name: tr.GetAnnotations()[annotation.Record]}); err != nil {
 		t.Fatalf("GetRecord: %v", err)
 	}
 
@@ -218,7 +219,7 @@ func TestReconcile_TaskRun(t *testing.T) {
 		}
 
 		// Simulate a failed run, set the completion time and advance
-		// the clock to make this test case more independent from the
+		// the clock to make this test case more independent of the
 		// previous one.
 		taskrun.Status.MarkResourceFailed(v1beta1.TaskRunReasonFailed, errors.New("Failed"))
 		taskrun.Status.CompletionTime = &metav1.Time{Time: fakeclock.Now()}
@@ -241,7 +242,7 @@ func TestReconcile_TaskRun(t *testing.T) {
 func TestReconcile_PipelineRun(t *testing.T) {
 	// Configures fake tekton clients + informers.
 	ctx, _ := rtesting.SetupFakeContext(t)
-	results := test.NewResultsClient(t)
+	resultsClient, logsClient := test.NewResultsClient(t, &config.Config{})
 
 	fakeclock := clockwork.NewFakeClockAt(time.Now())
 	clock = fakeclock
@@ -251,7 +252,7 @@ func TestReconcile_PipelineRun(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	r := NewDynamicReconciler(results, prclient, nil)
+	r := NewDynamicReconciler(resultsClient, logsClient, prclient, nil)
 	if err := r.Reconcile(ctx, pipelinerun); err != nil {
 		t.Fatal(err)
 	}
@@ -268,14 +269,14 @@ func TestReconcile_PipelineRun(t *testing.T) {
 
 	t.Run("Result", func(t *testing.T) {
 		name := pr.GetAnnotations()[annotation.Result]
-		if _, err := results.GetResult(ctx, &pb.GetResultRequest{Name: name}); err != nil {
+		if _, err := resultsClient.GetResult(ctx, &pb.GetResultRequest{Name: name}); err != nil {
 			t.Fatalf("GetResult: %v", err)
 		}
 	})
 
 	t.Run("Record", func(t *testing.T) {
 		name := pr.GetAnnotations()[annotation.Record]
-		_, err := results.GetRecord(ctx, &pb.GetRecordRequest{Name: name})
+		_, err := resultsClient.GetRecord(ctx, &pb.GetRecordRequest{Name: name})
 		if err != nil {
 			t.Fatalf("GetRecord: %v", err)
 		}

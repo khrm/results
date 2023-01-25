@@ -20,12 +20,12 @@
 | LOGS_TYPE             | Determine Logs storage backend type                                                                                      | File (default)                               |
 | LOGS_BUFFER_SIZE      | Buffer for streaming logs                                                                                                | 32768 (default)                              |
 | LOGS_PATH             | Logs storage path                                                                                                        | logs (default)                               |
-| S3_BUCKET_NAME        | S3 Bucket name                                                                                                           | elasticbeanstalk-ap-south-1-186765682378     |
+| S3_BUCKET_NAME        | S3 Bucket name                                                                                                           | <S3 Bucket Name>                             |
 | S3_ENDPOINT           | S3 Endpoint                                                                                                              | https://s3.ap-south-1.amazonaws.com          |
 | S3_HOSTNAME_IMMUTABLE | S3 Hostname immutable                                                                                                    | false (default)                              |
 | S3_REGION             | S3 Region                                                                                                                | ap-south-1                                   |
-| S3_ACCESS_KEY_ID      | S3 Access Key ID                                                                                                         | AKIGFT37RLYHUJ4GRE7M                         |
-| S3_SECRET_ACCESS_KEY  | S3 Secret Access Key                                                                                                     | +9btkSFv42sTW+Kl/HYhzmUBM+gP2y9kzJ354hrJ     |
+| S3_ACCESS_KEY_ID      | S3 Access Key ID                                                                                                         | <S3 Acces Key>                               |
+| S3_SECRET_ACCESS_KEY  | S3 Secret Access Key                                                                                                     | <S3 Access Secret>                           |
 | S3_MULTI_PART_SIZE    | S3 Multi part size                                                                                                       | 5242880 (default)                            |
 
 These values can also be set in the config file located in the `config/env/config` directory.
