@@ -58,6 +58,8 @@ spec:
             - name: tls
               mountPath: "/etc/tls"
               readOnly: true
+            - name: tekton-logs
+              mountPath: "/logs"
           securityContext:
             seccompProfile:
               type: RuntimeDefault
@@ -75,6 +77,21 @@ spec:
         - name: tls
           secret:
             secretName: tekton-results-tls
+        - name: tekton-logs
+          persistentVolumeClaim:
+            claimName: tekton-logs
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: tekton-logs
+  namespace: tekton-pipelines
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
 ---
 apiVersion: v1
 kind: Service
