@@ -34,7 +34,15 @@ func Root() *cobra.Command {
 				return err
 			}
 
-			params.Client = apiClient
+			params.ResultsClient = apiClient
+
+			logClient, err := client.DefaultLogClient(cmd.Context())
+
+			if err != nil {
+				return err
+			}
+
+			params.LogsClient = logClient
 
 			return nil
 		},

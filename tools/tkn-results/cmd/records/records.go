@@ -11,7 +11,7 @@ func Command(params *flags.Params) *cobra.Command {
 		Short: "Command sub-group for querying Records",
 	}
 
-	cmd.AddCommand(ListCommand(params))
+	cmd.AddCommand(ListCommand(params), GetRecordCommand(params))
 
 	return cmd
 }
