@@ -1,18 +1,4 @@
-// Copyright 2023 The Tekton Authors
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-package records
+package logs
 
 import (
 	"fmt"
@@ -33,14 +19,19 @@ func GetRecordCommand(params *flags.Params) *cobra.Command {
   <record parent>: Record parent name to query. This is typically "<namespace>/results/<result name>", but may vary depending on the API Server. "-" may be used as <result name> to query all Results for a given parent.`,
 		Short: "Get Record",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			resp, err := params.ResultsClient.GetRecord(cmd.Context(), &pb.GetRecordRequest{
+			resp, err := params.LogsClient.GetLog(cmd.Context(), &pb.GetLogRequest{
 				Name: args[0],
 			})
 			if err != nil {
-				fmt.Printf("GetRecord: %v\n", err)
+				fmt.Printf("GetLog: %v\n", err)
 				return err
 			}
-			return format.PrintProto(os.Stdout, resp, opts.Format)
+			data, err := resp.Recv()
+			if err != nil {
+				fmt.Printf("Get Log Client Resp: %v\n", err)
+				return err
+			}
+			return format.PrintProto(os.Stdout, data, opts.Format)
 		},
 		Args: cobra.ExactArgs(1),
 	}
