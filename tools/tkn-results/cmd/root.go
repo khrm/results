@@ -51,10 +51,12 @@ func Root() *cobra.Command {
 
 	cmd.PersistentFlags().StringP("addr", "a", "", "Result API server address")
 	cmd.PersistentFlags().StringP("authtoken", "t", "", "authorization bearer token to use for authenticated requests")
+	cmd.PersistentFlags().BoolP("insecure", "", false, "insecure GRPC tls request")
 
 	cmd.AddCommand(ListCommand(params), records.Command(params), logs.Command(params))
 
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
+
 	viper.BindPFlags(cmd.PersistentFlags())
 
 	return cmd

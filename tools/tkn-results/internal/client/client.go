@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"crypto/tls"
 	"crypto/x509"
 	"fmt"
 	"io/ioutil"
@@ -57,15 +58,23 @@ func (f *ClientFactory) Client(ctx context.Context) (pb.ResultsClient, error) {
 		return nil, err
 	}
 
-	certs, err := f.certs()
-	if err != nil {
-		return nil, err
+	var creds credentials.TransportCredentials
+	if f.cfg.Insecure {
+		creds = credentials.NewTLS(&tls.Config{
+			InsecureSkipVerify: true,
+		})
+	} else {
+		certs, err := f.certs()
+		if err != nil {
+			return nil, err
+		}
+		creds = credentials.NewClientTLSFromCert(certs, f.cfg.SSL.ServerNameOverride)
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	conn, err := grpc.DialContext(ctx, f.cfg.Address, grpc.WithBlock(),
-		grpc.WithTransportCredentials(credentials.NewClientTLSFromCert(certs, f.cfg.SSL.ServerNameOverride)),
+		grpc.WithTransportCredentials(creds),
 		grpc.WithDefaultCallOptions(grpc.PerRPCCredentials(oauth.TokenSource{
 			TokenSource: oauth2.StaticTokenSource(&oauth2.Token{AccessToken: token}),
 		})),
@@ -101,15 +110,23 @@ func (f *ClientFactory) LogClient(ctx context.Context) (pb.LogsClient, error) {
 		return nil, err
 	}
 
-	certs, err := f.certs()
-	if err != nil {
-		return nil, err
+	var creds credentials.TransportCredentials
+	if f.cfg.Insecure {
+		creds = credentials.NewTLS(&tls.Config{
+			InsecureSkipVerify: true,
+		})
+	} else {
+		certs, err := f.certs()
+		if err != nil {
+			return nil, err
+		}
+		creds = credentials.NewClientTLSFromCert(certs, f.cfg.SSL.ServerNameOverride)
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	conn, err := grpc.DialContext(ctx, f.cfg.Address, grpc.WithBlock(),
-		grpc.WithTransportCredentials(credentials.NewClientTLSFromCert(certs, f.cfg.SSL.ServerNameOverride)),
+		grpc.WithTransportCredentials(creds),
 		grpc.WithDefaultCallOptions(grpc.PerRPCCredentials(oauth.TokenSource{
 			TokenSource: oauth2.StaticTokenSource(&oauth2.Token{AccessToken: token}),
 		})),
