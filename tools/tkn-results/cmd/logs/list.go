@@ -30,8 +30,8 @@ func ListCommand(params *flags.Params) *cobra.Command {
 	cmd := &cobra.Command{
 		Use: `list [flags] <result parent>
 
-  <result parent>: Result parent name to query. This is typically "<namespace>/results/<result name>", but may vary depending on the API Server. "-" may be used as <result name> to query all Results for a given parent.`,
-		Short: "List Records",
+  <result parent>: Result parent name to query. This is typically "<namespace>/results/<result name>", but may vary depending on the API Server. "-" may be used as <result name> to query all Logs for a given parent.`,
+		Short: "List Logs",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			resp, err := params.LogsClient.ListLogs(cmd.Context(), &pb.ListRecordsRequest{
 				Parent:    args[0],
@@ -40,12 +40,15 @@ func ListCommand(params *flags.Params) *cobra.Command {
 				PageToken: opts.PageToken,
 			})
 			if err != nil {
-				fmt.Printf("ListRecords: %v\n", err)
+				fmt.Printf("List Logs: %v\n", err)
 				return err
 			}
 			return format.PrintProto(os.Stdout, resp, opts.Format)
 		},
 		Args: cobra.ExactArgs(1),
+		Annotations: map[string]string{
+			"commandType": "main",
+		},
 	}
 
 	flags.AddListFlags(opts, cmd)

@@ -47,6 +47,9 @@ func Root() *cobra.Command {
 
 			return nil
 		},
+		Annotations: map[string]string{
+			"commandType": "main",
+		},
 	}
 
 	cmd.PersistentFlags().StringP("addr", "a", "", "Result API server address")

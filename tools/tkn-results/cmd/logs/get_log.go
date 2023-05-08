@@ -10,14 +10,14 @@ import (
 	"github.com/tektoncd/results/tools/tkn-results/internal/format"
 )
 
-func GetRecordCommand(params *flags.Params) *cobra.Command {
+func GetLogCommand(params *flags.Params) *cobra.Command {
 	opts := &flags.GetOptions{}
 
 	cmd := &cobra.Command{
-		Use: `get [flags] <record>
+		Use: `get [flags] <log>
 
-  <record parent>: Record parent name to query. This is typically "<namespace>/results/<result name>", but may vary depending on the API Server. "-" may be used as <result name> to query all Results for a given parent.`,
-		Short: "Get Record",
+  <log path>: Log full name to query. This is typically "<namespace>/results/<result name>/logs/<log name>".`,
+		Short: "Get Log",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			resp, err := params.LogsClient.GetLog(cmd.Context(), &pb.GetLogRequest{
 				Name: args[0],
@@ -34,6 +34,9 @@ func GetRecordCommand(params *flags.Params) *cobra.Command {
 			return format.PrintProto(os.Stdout, data, opts.Format)
 		},
 		Args: cobra.ExactArgs(1),
+		Annotations: map[string]string{
+			"commandType": "main",
+		},
 	}
 
 	flags.AddGetFlags(opts, cmd)

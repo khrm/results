@@ -3,9 +3,9 @@
 Get Record
 
 ```
-tkn-results records get [flags] <record>
+tkn-results records get [flags] <record_path>
 
-  <record parent>: Record parent name to query. This is typically "<namespace>/results/<result name>", but may vary depending on the API Server. "-" may be used as <result name> to query all Results for a given parent.
+  <record path>: Record path to query. This is typically "<namespace>/results/<result name>/records/<record name>".
 ```
 
 ### Options

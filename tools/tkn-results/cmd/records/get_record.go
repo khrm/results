@@ -28,9 +28,9 @@ func GetRecordCommand(params *flags.Params) *cobra.Command {
 	opts := &flags.GetOptions{}
 
 	cmd := &cobra.Command{
-		Use: `get [flags] <record>
+		Use: `get [flags] <record_path>
 
-  <record parent>: Record parent name to query. This is typically "<namespace>/results/<result name>", but may vary depending on the API Server. "-" may be used as <result name> to query all Results for a given parent.`,
+  <record path>: Record path to query. This is typically "<namespace>/results/<result name>/records/<record name>".`,
 		Short: "Get Record",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			resp, err := params.ResultsClient.GetRecord(cmd.Context(), &pb.GetRecordRequest{
@@ -43,6 +43,9 @@ func GetRecordCommand(params *flags.Params) *cobra.Command {
 			return format.PrintProto(os.Stdout, resp, opts.Format)
 		},
 		Args: cobra.ExactArgs(1),
+		Annotations: map[string]string{
+			"commandType": "main",
+		},
 	}
 
 	flags.AddGetFlags(opts, cmd)

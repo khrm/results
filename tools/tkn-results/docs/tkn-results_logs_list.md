@@ -1,11 +1,11 @@
 ## tkn-results logs list
 
-List Records
+List Logs
 
 ```
 tkn-results logs list [flags] <result parent>
 
-  <result parent>: Result parent name to query. This is typically "<namespace>/results/<result name>", but may vary depending on the API Server. "-" may be used as <result name> to query all Results for a given parent.
+  <result parent>: Result parent name to query. This is typically "<namespace>/results/<result name>", but may vary depending on the API Server. "-" may be used as <result name> to query all Logs for a given parent.
 ```
 
 ### Options

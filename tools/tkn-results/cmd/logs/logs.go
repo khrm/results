@@ -37,9 +37,12 @@ func Command(params *flags.Params) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "logs",
 		Short: "Command sub-group for querying logs",
+		Annotations: map[string]string{
+			"commandType": "main",
+		},
 	}
 
-	cmd.AddCommand(ListCommand(params), GetRecordCommand(params))
+	cmd.AddCommand(ListCommand(params), GetLogCommand(params))
 
 	return cmd
 }

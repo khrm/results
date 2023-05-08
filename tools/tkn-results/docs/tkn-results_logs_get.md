@@ -1,11 +1,11 @@
 ## tkn-results logs get
 
-Get Record
+Get Log
 
 ```
-tkn-results logs get [flags] <record>
+tkn-results logs get [flags] <log>
 
-  <record parent>: Record parent name to query. This is typically "<namespace>/results/<result name>", but may vary depending on the API Server. "-" may be used as <result name> to query all Results for a given parent.
+  <log path>: Log full name to query. This is typically "<namespace>/results/<result name>/logs/<log name>".
 ```
 
 ### Options
