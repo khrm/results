@@ -21,6 +21,7 @@ var (
 		EnvSSLRootFilePath:       "Path to local SSL cert to use.",
 		EnvSSLServerNameOverride: "SSL server name override (useful if using with a proxy such as kubectl port-forward).",
 	}
+	cfg *Config
 )
 
 type Config struct {
@@ -55,19 +56,20 @@ func init() {
 	viper.SetConfigName("results")
 	viper.SetConfigType("yaml")
 	viper.AddConfigPath("$HOME/.config/tkn")
-	pflag.StringP("addr", "a", "", "Result API server address")
-	pflag.StringP("authtoken", "t", "", "authorization bearer token to use for authenticated requests")
-	pflag.Parse()
+	err := setConfig()
+	if err != nil {
+		fmt.Println("error setting up flags and config", err)
+	}
 }
 
-func GetConfig() (*Config, error) {
+func setConfig() error {
 	if err := viper.BindPFlags(pflag.CommandLine); err != nil {
-		return nil, err
+		fmt.Println(err)
 	}
 
 	for k := range env {
 		if err := viper.BindEnv(k); err != nil {
-			return nil, err
+			return err
 		}
 	}
 
@@ -78,7 +80,7 @@ func GetConfig() (*Config, error) {
 
 	// Initial config is contains the env variables,
 	// so that the unmarshal can take priority if those values are set.
-	cfg := &Config{
+	cfg = &Config{
 		SSL: SSLConfig{
 			RootsFilePath:      viper.GetString(EnvSSLRootFilePath),
 			ServerNameOverride: viper.GetString(EnvSSLServerNameOverride),
@@ -87,7 +89,8 @@ func GetConfig() (*Config, error) {
 
 	if err := viper.ReadInConfig(); err == nil {
 		if err := viper.Unmarshal(cfg); err != nil {
-			return nil, err
+			fmt.Println(err)
+			return err
 		}
 	} else {
 		fmt.Println(err)
@@ -101,6 +104,9 @@ func GetConfig() (*Config, error) {
 		cfg.Token = viper.GetString("authtoken")
 	}
 	cfg.Portforward = viper.GetBool("portforward")
+	return nil
+}
 
+func GetConfig() (*Config, error) {
 	return cfg, nil
 }
