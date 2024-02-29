@@ -47,7 +47,7 @@ func (s *Server) GetLog(req *pb.GetLogRequest, srv pb.Logs_GetLogServer) error {
 		return err
 	}
 	// Check if the input record is referenced in any logs record in the result
-	if rec.Type != v1alpha2.LogRecordType {
+	if rec.Type != v1alpha2.LogRecordType && !s.config.LOGS_PLUGIN {
 		rec, err = getLogRecord(s.db, parent, res, name)
 		if err != nil {
 			s.logger.Error(err)

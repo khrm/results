@@ -101,13 +101,24 @@ func ToStorage(record *pb.Record, config *config.Config) ([]byte, error) {
 // Second one is log API resource retrieved from log record.
 // Third argument is an error.
 func ToStream(ctx context.Context, record *db.Record, config *config.Config) (Stream, *v1alpha2.Log, error) {
-	if record.Type != v1alpha2.LogRecordType {
+	if record.Type != v1alpha2.LogRecordType && !config.LOGS_PLUGIN {
 		return nil, nil, fmt.Errorf("record type %s cannot stream logs", record.Type)
 	}
-	log := &v1alpha2.Log{}
-	err := json.Unmarshal(record.Data, log)
-	if err != nil {
-		return nil, nil, fmt.Errorf("could not decode Log record: %w", err)
+
+	log := &v1alpha2.Log{
+		Spec: v1alpha2.LogSpec{
+			Type: v1alpha2.LogType(config.LOGS_TYPE),
+		},
+		Status: v1alpha2.LogStatus{
+			Path: "/" + record.Parent + "/" + record.ResultName + "/" + record.Name + ".log",
+			Size: int64(DefaultBufferSize),
+		},
+	}
+	if !config.LOGS_PLUGIN {
+		err := json.Unmarshal(record.Data, log)
+		if err != nil {
+			return nil, nil, fmt.Errorf("could not decode Log record: %w", err)
+		}
 	}
 	stream, err := NewStream(ctx, log, config)
 	return stream, log, err
