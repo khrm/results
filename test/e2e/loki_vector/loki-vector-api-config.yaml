@@ -1,0 +1,31 @@
+---
+apiVersion: v1
+data:
+  config: |
+    DB_USER=
+    DB_PASSWORD=
+    DB_HOST=tekton-results-postgres-service.tekton-pipelines.svc.cluster.local
+    DB_PORT=5432
+    DB_NAME=tekton-results
+    DB_SSLMODE=disable
+    DB_ENABLE_AUTO_MIGRATION=true
+    SERVER_PORT=8080
+    PROMETHEUS_PORT=9090
+    PROMETHEUS_HISTOGRAM=false
+    TLS_PATH=/etc/tls
+    AUTH_DISABLE=true
+    AUTH_IMPERSONATE=true
+    LOG_LEVEL=info
+    LOGS_API=true
+    LOGS_TYPE=LOKI
+    LOGS_PLUGIN=true
+    LOKI_URL=http://loki.tekton-pipelines.svc.cluster.local:3100
+    LOGS_BUFFER_SIZE=32768888
+    LOGS_PATH=/logs
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/part-of: tekton-results
+    app.kubernetes.io/version: devel
+  name: tekton-results-api-config
+  namespace: tekton-pipelines

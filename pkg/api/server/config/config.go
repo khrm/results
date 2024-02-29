@@ -2,8 +2,15 @@ package config
 
 import (
 	"log"
+	"os"
+	"strconv"
+	"time"
 
 	"github.com/spf13/viper"
+)
+
+const (
+	maxRetentionKey = "MAX_RETENTION"
 )
 
 type Config struct {
@@ -31,6 +38,7 @@ type Config struct {
 	AUTH_IMPERSONATE bool `mapstructure:"AUTH_IMPERSONATE"`
 
 	LOGS_API         bool   `mapstructure:"LOGS_API"`
+	LOGS_PLUGIN      bool   `mapstructure:"LOGS_PLUGIN"`
 	LOGS_TYPE        string `mapstructure:"LOGS_TYPE"`
 	LOGS_BUFFER_SIZE int    `mapstructure:"LOGS_BUFFER_SIZE"`
 	LOGS_PATH        string `mapstructure:"LOGS_PATH"`
@@ -48,6 +56,10 @@ type Config struct {
 	S3_ACCESS_KEY_ID      string `mapstructure:"S3_ACCESS_KEY_ID"`
 	S3_SECRET_ACCESS_KEY  string `mapstructure:"S3_SECRET_ACCESS_KEY"`
 	S3_MULTI_PART_SIZE    int64  `mapstructure:"S3_MULTI_PART_SIZE"`
+
+	LOKI_URL string `mapstructure:"LOKI_URL"`
+
+	MaxRetention time.Duration
 }
 
 func Get() *Config {
@@ -69,5 +81,14 @@ func Get() *Config {
 	if err := viper.Unmarshal(&config); err != nil {
 		log.Fatal("Cannot load config:", err)
 	}
+
+	maxRetention := os.Getenv(maxRetentionKey)
+	v, err := strconv.Atoi(maxRetention)
+	log.Printf("maxRetention: %s", maxRetention)
+	if err != nil {
+		log.Fatalf("incorrect configuration for maxRetention:%s", err.Error())
+	}
+	config.MaxRetention = time.Hour * 24 * time.Duration(v)
+
 	return &config
 }
