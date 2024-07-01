@@ -3,9 +3,14 @@ package server
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
+	"net/url"
+	"strconv"
+	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/cel-go/cel"
@@ -26,6 +31,16 @@ import (
 	pb "github.com/tektoncd/results/proto/v1alpha2/results_go_proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
+
+var client *http.Client
+
+func init() {
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	client = &http.Client{Transport: tr}
+
+}
 
 // GetLog streams log record by log request
 func (s *Server) GetLog(req *pb.GetLogRequest, srv pb.Logs_GetLogServer) error {
@@ -55,20 +70,57 @@ func (s *Server) GetLog(req *pb.GetLogRequest, srv pb.Logs_GetLogServer) error {
 		}
 	}
 
-	stream, object, err := log.ToStream(srv.Context(), rec, s.config)
-	if err != nil {
-		s.logger.Error(err)
-		return status.Error(codes.Internal, "Error streaming log")
-	}
-	if object.Status.Size == 0 {
-		s.logger.Errorf("no logs exist for %s", req.GetName())
-		return status.Error(codes.NotFound, "Log doesn't exist")
-	}
-
 	writer := logs.NewBufferedHTTPWriter(srv, req.GetName(), s.config.LOGS_BUFFER_SIZE)
-	if _, err = stream.WriteTo(writer); err != nil {
-		s.logger.Error(err)
-		return status.Error(codes.Internal, "Error streaming log")
+
+	if s.config.LOGS_PLUGIN {
+		URL, _ := url.Parse("https://logging-loki-openshift-logging.apps-crc.testing/api/logs/v1/application/loki/api/v1/query_range")
+		now := time.Now()
+		parameters := url.Values{}
+		parameters.Add("query", `{ log_type="application", kubernetes_namespace_name="`+parent+`" }|json|="`+rec.Name+`"| line_format "{{.message}}"`)
+		parameters.Add("end", strconv.FormatInt(now.UTC().Unix(), 10))
+		parameters.Add("start", strconv.FormatInt(now.Add(time.Duration(-43111)*time.Minute).Unix(), 10))
+
+		URL.RawQuery = parameters.Encode()
+
+		req, err := http.NewRequest("GET", URL.String(), nil)
+		if err != nil {
+			// handle err
+		}
+		token := `eyJhbGciOiJSUzI1NiIsImtpZCI6IjlWYzJxX2JMVjJaQ3FUUjFkR0lib1JPM0JRQTRFcUE3N0dmSWpVVURTeVUifQ.eyJhdWQiOlsiaHR0cHM6Ly9rdWJlcm5ldGVzLmRlZmF1bHQuc3ZjIl0sImV4cCI6MTcyMDMyOTg4MCwiaWF0IjoxNzE5Nzg5ODgwLCJpc3MiOiJodHRwczovL2t1YmVybmV0ZXMuZGVmYXVsdC5zdmMiLCJrdWJlcm5ldGVzLmlvIjp7Im5hbWVzcGFjZSI6Im9wZW5zaGlmdC1sb2dnaW5nIiwic2VydmljZWFjY291bnQiOnsibmFtZSI6ImxvZ3MtcmVhZGVyIiwidWlkIjoiYTE4ZThhYmEtZTI1Zi00NGMyLTgwMWYtZTA5MDlkNjkxZDkwIn19LCJuYmYiOjE3MTk3ODk4ODAsInN1YiI6InN5c3RlbTpzZXJ2aWNlYWNjb3VudDpvcGVuc2hpZnQtbG9nZ2luZzpsb2dzLXJlYWRlciJ9.Jg4rimDndRFLDS2rXTIOWRpLeIWKpMttiKHsJ9jLC4oba9cLtykq3-L0jlS-_tzfUCu66nyxUpg4zpXzczoi6454CIBCdhZXfgSSxmJAS5uU-aK1OpAYYXPJnZqX3znfMF3x8kLkIDWfE_eBdw3X6sH_9Jh-AJKvwzxOezFcWbgTEUS11n8S6N-y9edQF7L8gziNIcYtcsnVJhqbCEczBo3qGhj_Wvzcd_2CONwCYRimaw4I50zo5k7sCaOM1H9oW2EfqAZ85VDxEp6-I6uUqJ2Dj-WQTLd7o_EklIK_hOOyV1MWm681ej2_vYgBHr8C8p-4h-KTHYOkSUvmYO9ciDKGkNeEXrt-UsHparjoTUctTJZIOzZQxkMhWAy6qlPt3rVo02fj6co_TvwrksSwpSx776d9MDZm_egjYBlamDlsro-waIo3nxMcXX9J18KoNIeObNHjW3Irtu5H4Jr6vJfJKFlnBxKKThmyzC_JKHcQBCOPHjl85VIG56HodZR2BqY8tHrwuLLPizT1BKrg_uG_6cR9jeKbyQIsauW_KZJlU9f7V-lyXEn9Cou0ErPnCvAFWsSyBssIjO2NsWet5VOdISdgXz6cvTvQLjFwPqcCB55p90E2xcImx8raydq8F7z5DTADMDl9PZdkuTaE-Ku8j9q3E7xcAZYSdyprk50`
+		req.Header.Set("Authorization", "Bearer "+token)
+		s.logger.Infof("request: %v", req)
+		s.logger.Infof("request.URL: %s", req.URL.String())
+		resp, err := client.Do(req)
+		if err != nil {
+			s.logger.Error(err)
+			return status.Error(codes.Internal, "Error streaming log")
+		}
+		data, err := io.ReadAll(resp.Body)
+		if err != nil {
+			s.logger.Error(err)
+			return status.Error(codes.Internal, "Error streaming log")
+		}
+		r := bytes.NewReader(data)
+		if _, err = r.WriteTo(writer); err != nil {
+			s.logger.Error(err)
+			return status.Error(codes.Internal, "Error streaming log")
+		}
+
+	} else {
+		stream, object, err := log.ToStream(srv.Context(), rec, s.config)
+		if err != nil {
+			s.logger.Error(err)
+			return status.Error(codes.Internal, "Error streaming log")
+		}
+		if object.Status.Size == 0 {
+			s.logger.Errorf("no logs exist for %s", req.GetName())
+			return status.Error(codes.NotFound, "Log doesn't exist")
+		}
+
+		if _, err = stream.WriteTo(writer); err != nil {
+			s.logger.Error(err)
+			return status.Error(codes.Internal, "Error streaming log")
+		}
 	}
 	_, err = writer.Flush()
 	if err != nil {
