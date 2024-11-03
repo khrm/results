@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
 	"github.com/tektoncd/results/pkg/api/server/db"
@@ -34,6 +35,11 @@ const (
 	pipelineRunUIDKey = "kubernetes.labels.tekton_dev_pipelineRunUID"
 	taskRunUIDKey     = "kubernetes.labels.tekton_dev_taskRunUID"
 )
+
+// Writer interface for writing logs
+type Writer interface {
+	Write([]byte) (int, error)
+}
 
 // GetLog streams log record by log request
 func (s *LogPluginServer) GetLog(req *pb3.GetLogRequest, srv pb3.Logs_GetLogServer) error {
@@ -61,6 +67,7 @@ func (s *LogPluginServer) GetLog(req *pb3.GetLogRequest, srv pb3.Logs_GetLogServ
 	if err != nil {
 		s.logger.Error(err)
 	}
+
 	_, err = writer.Flush()
 	if err != nil {
 		s.logger.Error(err)
@@ -69,7 +76,7 @@ func (s *LogPluginServer) GetLog(req *pb3.GetLogRequest, srv pb3.Logs_GetLogServ
 	return nil
 }
 
-func (s *LogPluginServer) getPluginLogs(writer *logs.BufferedLog, parent string, rec *db.Record) error {
+func (s *LogPluginServer) getPluginLogs(writer Writer, parent string, rec *db.Record) error {
 	switch strings.ToLower(s.config.LOGS_TYPE) {
 	case string(v1alpha3.LokiLogType):
 		return s.getLokiLogs(writer, parent, rec)
@@ -79,7 +86,7 @@ func (s *LogPluginServer) getPluginLogs(writer *logs.BufferedLog, parent string,
 	}
 }
 
-func (s *LogPluginServer) getLokiLogs(writer *logs.BufferedLog, parent string, rec *db.Record) error {
+func (s *LogPluginServer) getLokiLogs(writer Writer, parent string, rec *db.Record) error {
 	URL, err := url.Parse(s.config.LOGGING_PLUGIN_API_URL)
 	if err != nil {
 		s.logger.Error(err)
@@ -246,4 +253,32 @@ func (s *LogPluginServer) getLokiLogs(writer *logs.BufferedLog, parent string, r
 
 	return nil
 
+}
+
+func (s *LogPluginServer) logMux() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// TODO: Create a new log handler
+		ctx := r.Context()
+		ctx = metadata.AppendToOutgoingContext(ctx, "authorization", r.Header.Get("Authorization"))
+		parent := r.PathValue("parent")
+		if err := s.auth.Check(ctx, parent, auth.ResourceLogs, auth.PermissionGet); err != nil {
+			s.logger.Error(err)
+			http.Error(w, "Not Authorized", http.StatusUnauthorized)
+			return
+		}
+		recID := r.PathValue("recordID")
+		res := r.PathValue("resultID")
+		s.logger.Infof("recordID: %s resultID: %s name: %s", recID, res, parent)
+		rec, err := getRecord(s.db, parent, res, recID)
+		if err != nil {
+			s.logger.Error(err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+
+		err = s.getPluginLogs(w, parent, rec)
+		if err != nil {
+			s.logger.Error(err)
+			http.Error(w, "Failed to stream logs err: "+err.Error(), http.StatusInternalServerError)
+		}
+	})
 }
