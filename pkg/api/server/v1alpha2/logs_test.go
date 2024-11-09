@@ -33,13 +33,14 @@ import (
 	"google.golang.org/grpc"
 )
 
-type mockGetLogServer struct {
+// MockGetLogServer is a mock implementation of the GetLogServer interface
+type MockGetLogServer struct {
 	grpc.ServerStream
 	ctx          context.Context
 	receivedData *bytes.Buffer
 }
 
-func (m *mockGetLogServer) Send(chunk *httpbody.HttpBody) error {
+func (m *MockGetLogServer) Send(chunk *httpbody.HttpBody) error {
 	if m.receivedData == nil {
 		m.receivedData = &bytes.Buffer{}
 	}
@@ -47,7 +48,7 @@ func (m *mockGetLogServer) Send(chunk *httpbody.HttpBody) error {
 	return err
 }
 
-func (m *mockGetLogServer) Context() context.Context {
+func (m *MockGetLogServer) Context() context.Context {
 	return m.ctx
 }
 
