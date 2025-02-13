@@ -319,7 +319,7 @@ func main() {
 		}
 	}
 
-	httpMux = v1alpha2.Handler(httpMux, v1a2.LogPluginServer)
+	httpMux = v1alpha2.Handler(httpMux, v1a2, v1a2.LogPluginServer)
 
 	// Start server with gRPC and REST handler
 	log.Infof("gRPC and REST server listening on: %s", serverConfig.SERVER_PORT)

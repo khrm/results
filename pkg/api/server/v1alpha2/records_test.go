@@ -16,7 +16,11 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"sort"
 	"strconv"
 	"strings"
@@ -247,6 +251,7 @@ func TestGetRecord(t *testing.T) {
 		})
 	}
 }
+
 func TestListRecords(t *testing.T) {
 	lastID = 0
 	// Create a temporary database
@@ -536,6 +541,79 @@ func TestListRecords(t *testing.T) {
 			t.Run("paginate records sorting by "+test.orderBy, testPagination("", test.orderBy, test.recordsToCompare))
 		}
 	}
+
+	httpTests := []struct {
+		name       string
+		path       string
+		parent     string
+		resultID   string
+		query      string
+		wantStatus int
+		wantCount  int // number of records expected in response
+	}{
+		{
+			name:       "with parent and resultID",
+			path:       "/v1alpha2/parents/foo/results/bar/records",
+			parent:     "foo",
+			resultID:   "bar",
+			query:      "",
+			wantStatus: http.StatusOK,
+			wantCount:  20,
+		},
+		{
+			name:       "without parent and resultID",
+			path:       "/v1alpha2/parents/-/results/-/records",
+			parent:     "-",
+			resultID:   "-",
+			query:      "",
+			wantStatus: http.StatusOK,
+			wantCount:  20,
+		},
+		{
+			name:       "with filter",
+			path:       "/v1alpha2/parents/foo/results/bar/records",
+			parent:     "foo",
+			resultID:   "bar",
+			query:      "filter=data_type%3D%3D%22TaskRun%22",
+			wantStatus: http.StatusOK,
+			wantCount:  10,
+		},
+	}
+
+	for _, tc := range httpTests {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest("GET", tc.path, nil)
+			req.SetPathValue("parent", tc.parent)
+			req.SetPathValue("resultID", tc.resultID)
+			req.URL.RawQuery = tc.query
+			w := httptest.NewRecorder()
+
+			handler := srv.ListRecordsMux()
+			handler.ServeHTTP(w, req)
+
+			resp := w.Result()
+			if resp.StatusCode != tc.wantStatus {
+				body, _ := io.ReadAll(resp.Body)
+				t.Errorf("ListRecordsMux() status = %v, body = %s, want status = %v", resp.StatusCode, string(body), tc.wantStatus)
+			}
+
+			if tc.wantStatus == http.StatusOK {
+				var got pb.ListRecordsResponse
+				if err := json.NewDecoder(resp.Body).Decode(&got); err != nil {
+					t.Fatalf("Failed to decode response: %v", err)
+				}
+
+				if len(got.Records) != tc.wantCount {
+					t.Errorf("ListRecordsMux() returned %d records, want %d", len(got.Records), tc.wantCount)
+				}
+
+				if got.NextPageToken != "" {
+					t.Errorf("ListRecordsMux() nextPageToken = %v, want empty", got.NextPageToken)
+				}
+			}
+		})
+	}
+
 }
 
 func TestUpdateRecord(t *testing.T) {

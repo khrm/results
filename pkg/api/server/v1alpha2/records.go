@@ -16,10 +16,19 @@ package server
 
 import (
 	"context"
+	"encoding/json"
+	"net/http"
+	"time"
+
+	"strconv"
+
+	"google.golang.org/grpc/metadata"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/cel-go/cel"
 	"github.com/google/cel-go/checker/decls"
+	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
+	"github.com/grpc-ecosystem/grpc-gateway/v2/utilities"
 	"github.com/tektoncd/results/pkg/api/server/db"
 	"github.com/tektoncd/results/pkg/api/server/db/errors"
 	"github.com/tektoncd/results/pkg/api/server/v1alpha2/auth"
@@ -32,8 +41,63 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
+
 	"gorm.io/gorm"
 )
+
+var (
+	filter_Results_ListRecords_0 = &utilities.DoubleArray{Encoding: map[string]int{"parent": 0}, Base: []int{1, 1, 0}, Check: []int{0, 1, 2}}
+)
+
+// ListRecordsMux returns a http.Handler that serves the ListRecords API
+func (s *Server) ListRecordsMux() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		ctx := r.Context()
+		md := metadata.MD(r.Header)
+		ctx = metadata.NewIncomingContext(ctx, md)
+		parent := r.PathValue("parent")
+		resID := r.PathValue("resultID")
+		s.logger.Debugf(" resultID: %s namespace: %s md: %+v", resID, parent, r.Header)
+
+		if err := r.ParseForm(); err != nil {
+			s.logger.Errorf("Failed to parse records list request err: %v", err)
+			http.Error(w, "Failed to parse records list request err: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		req := &pb.ListRecordsRequest{
+			Parent: result.FormatName(parent, resID),
+		}
+		if err := runtime.PopulateQueryParameters(req, r.Form, filter_Results_ListRecords_0); err != nil {
+			s.logger.Errorf("Failed to populate query parameters records list err: %v", err)
+			http.Error(w, "Failed to populate query parameters records list err: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		resp, err := s.ListRecords(ctx, req)
+		if err != nil {
+			s.logger.Errorf("Failed to fetch records list err: %v", err)
+			http.Error(w, "Failed to fetch records list err: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		timeTaken := time.Since(start)
+		s.logger.Debugf("Time taken to fetch records list: %v", timeTaken)
+		start = time.Now()
+		data, err := json.Marshal(resp)
+		if err != nil {
+			s.logger.Errorf("Failed to marshal records list err: %v", err)
+			http.Error(w, "Failed to marshal records list err: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		timeTaken = time.Since(start)
+		s.logger.Debugf("Time taken to encode records list: %v", timeTaken)
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Content-Length", strconv.Itoa(len(data)))
+
+		w.Write(data)
+	})
+}
 
 // CreateRecord creates a new record in the database.
 func (s *Server) CreateRecord(ctx context.Context, req *pb.CreateRecordRequest) (*pb.Record, error) {
