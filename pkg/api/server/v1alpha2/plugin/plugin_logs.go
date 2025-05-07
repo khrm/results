@@ -445,7 +445,8 @@ func getBlobLogs(s *LogServer, writer io.Writer, parent string, rec *db.Record) 
 	return nil
 }
 
-// mergeLogParts organizes in groups objects part of the same log
+// mergeLogParts groups log file paths by their base name, as determined by the provided regular expression.
+// Returns a slice of slices, where each inner slice contains all parts belonging to the same log.
 func mergeLogParts(logPath []string, re *regexp.Regexp) [][]string {
 	merged := [][]string{}
 	// use extra mapping [log_base_name:index_of_slice_of_parts] to preserve the order of elements
@@ -468,6 +469,8 @@ func mergeLogParts(logPath []string, re *regexp.Regexp) [][]string {
 //
 // It constructs a Splunk search job using the record's UID and namespace, submits the job, polls for completion, and fetches the resulting logs.
 // The function requires a valid Splunk API URL, a search token from the environment, and an "index" query parameter.
+// getSplunkLogs retrieves logs for a given record from a Splunk backend and writes them to the provided writer.
+// It creates a Splunk search job using the record's UID and namespace, polls for job completion, fetches the results, and formats the log messages.
 // Returns an error if any step in the process fails, including job creation, polling, or log retrieval.
 func getSplunkLogs(s *LogServer, writer io.Writer, parent string, rec *db.Record) error {
 	URL, err := url.Parse(s.config.LOGGING_PLUGIN_API_URL)
@@ -617,6 +620,7 @@ func getSplunkLogs(s *LogServer, writer io.Writer, parent string, rec *db.Record
 
 // pollSplunkJobStatus polls the status of a Splunk search job until it is complete, fails, or times out.
 // It sends periodic GET requests to the provided Splunk job status URL using the given token.
+// pollSplunkJobStatus polls the status of a Splunk search job until it completes, fails, is canceled, or times out.
 // Returns an error if the job fails, is canceled, or does not complete within the timeout period.
 func pollSplunkJobStatus(s *LogServer, url, token string) error {
 	ticker := time.NewTicker(splunkPollInterval)
